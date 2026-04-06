@@ -4,7 +4,7 @@ import { enforceRole, requireSession } from "@/lib/server/guards";
 
 export async function GET() {
   const session = await requireSession();
-  enforceRole(session, ["SuperAdmin"]);
+  enforceRole(session, ["SuperAdmin", "Admin"]);
 
   const logs = await prisma.auditLog.findMany({
     where: { tenantId: session.tenantId },

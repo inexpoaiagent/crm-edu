@@ -47,7 +47,13 @@ export async function GET(_request: Request, context: RouteContext<"/api/student
   const visibility = studentVisibilityWhere(session);
   const student = await prisma.student.findFirst({
     where: { ...visibility, id },
-    include: { applications: true, documents: true },
+    include: {
+      applications: { include: { university: true } },
+      documents: true,
+      payments: true,
+      tasks: true,
+      scholarships: { include: { scholarship: true } },
+    },
   });
 
   guardStudentAccess(session, student);
