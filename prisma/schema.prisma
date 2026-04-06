@@ -1,0 +1,306 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum DocumentType {
+  PASSPORT
+  DIPLOMA
+  TRANSCRIPT
+  ENGLISH_CERTIFICATE
+  PHOTO
+}
+
+enum DocumentStatus {
+  MISSING
+  UPLOADED
+  VERIFIED
+}
+
+enum StudentStage {
+  LEAD
+  ENROLLED
+  APPLIED
+  OFFERED
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  OFFERED
+  ENROLLED
+  REJECTED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  OVERDUE
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  domain    String?
+  locale    String   @default("en")
+  settings  Json?
+  users     User[]
+  roles     Role[]
+  students  Student[]
+  universities University[]
+  applications Application[]
+  documents Document[]
+  payments Payment[]
+  scholarships Scholarship[]
+  tasks Task[]
+  notifications Notification[]
+  studentRequests StudentRequest[]
+  auditLogs AuditLog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  name        String
+  permissions String[]
+  isDefault   Boolean  @default(false)
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id             String        @id @default(uuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  roleId         String
+  role           Role          @relation(fields: [roleId], references: [id])
+  name           String
+  email          String        @unique
+  passwordHash   String
+  status         UserStatus    @default(ACTIVE)
+  isDeleted      Boolean       @default(false)
+  lastLogin      DateTime?
+  profile        Json?
+  language       String        @default("en")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  students       Student[]     @relation("AgentAssignedStudents")
+  subAgentStudents Student[]   @relation("SubAgentAssignedStudents")
+  tasks          Task[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+  uploadedDocuments Document[]
+  createdApplications Application[] @relation("ApplicationCreatedBy")
+  assignedSubAgentApplications Application[] @relation("ApplicationAssignedSubAgent")
+}
+
+model Student {
+  id             String        @id @default(uuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  fullName       String
+  email          String        @unique
+  phone          String
+  nationality    String
+  gpa            Float?
+  fieldOfStudy   String
+  englishLevel   String
+  stage          StudentStage  @default(LEAD)
+  assignedAgent  User?         @relation("AgentAssignedStudents", fields: [assignedAgentId], references: [id])
+  assignedAgentId String?
+  assignedSubAgent User?       @relation("SubAgentAssignedStudents", fields: [assignedSubAgentId], references: [id])
+  assignedSubAgentId String?
+  username       String        @unique
+  passwordHash   String?
+  applications   Application[]
+  documents      Document[]
+  payments       Payment[]
+  scholarships   StudentScholarship[]
+  tasks          Task[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  isDeleted      Boolean       @default(false)
+}
+
+model University {
+  id           String      @id @default(uuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  name         String
+  country      String
+  website      String?
+  tuitionRange String?
+  language     String
+  programs     String[]
+  deadline     DateTime?
+  description  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  applications Application[]
+  scholarships Scholarship[]
+}
+
+model Application {
+  id           String             @id @default(uuid())
+  tenantId     String
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  studentId    String
+  student      Student            @relation(fields: [studentId], references: [id])
+  universityId String
+  university   University         @relation(fields: [universityId], references: [id])
+  program      String
+  intake       String
+  status       ApplicationStatus  @default(DRAFT)
+  deadline     DateTime?
+  notes        String?
+  createdById  String
+  createdBy     User              @relation("ApplicationCreatedBy", fields: [createdById], references: [id])
+  assignedSubAgentId String?
+  assignedSubAgent  User?         @relation("ApplicationAssignedSubAgent", fields: [assignedSubAgentId], references: [id])
+  documents    Document[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model Document {
+  id           String        @id @default(uuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  studentId    String
+  student      Student       @relation(fields: [studentId], references: [id])
+  applicationId String?
+  application   Application?  @relation(fields: [applicationId], references: [id])
+  type         DocumentType
+  fileName     String
+  fileUrl      String
+  status       DocumentStatus @default(MISSING)
+  expiryDate   DateTime?
+  uploadedById String?
+  uploadedBy   User?         @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Payment {
+  id          String       @id @default(uuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  studentId   String
+  student     Student      @relation(fields: [studentId], references: [id])
+  type        String
+  amount      Float
+  currency    String       @default("TRY")
+  description String?
+  commission  Float?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Scholarship {
+  id                 String              @id @default(uuid())
+  tenantId           String
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  title              String
+  universityId       String
+  university         University          @relation(fields: [universityId], references: [id])
+  discountPercentage Float
+  description        String?
+  assignments        StudentScholarship[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model StudentScholarship {
+  id            String      @id @default(uuid())
+  studentId     String
+  student       Student     @relation(fields: [studentId], references: [id])
+  scholarshipId String
+  scholarship   Scholarship @relation(fields: [scholarshipId], references: [id])
+  assignedAt    DateTime    @default(now())
+}
+
+model Task {
+  id            String       @id @default(uuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  title         String
+  description   String?
+  assignedToId  String?
+  assignedTo    User?        @relation(fields: [assignedToId], references: [id])
+  relatedStudentId String?
+  relatedStudent  Student?   @relation(fields: [relatedStudentId], references: [id])
+  deadline      DateTime?
+  priority      TaskPriority @default(MEDIUM)
+  status        TaskStatus   @default(TODO)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  type      String?
+  createdAt DateTime @default(now())
+}
+
+model StudentRequest {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  fullName  String
+  email     String
+  phone     String
+  intake    String?
+  notes     String?
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  description  String
+  category     String?
+  resourceId   String?
+  resourceType String?
+  createdAt    DateTime @default(now())
+}
