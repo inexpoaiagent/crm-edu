@@ -20,7 +20,7 @@
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
-  --font-sans: var(--font-geist-sans);
+  --font-sans: Inter, "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
 }
 
 * {

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireSession, enforceRole } from "@/lib/server/guards";
+import { requireSession, enforceRole, enforcePermission } from "@/lib/server/guards";
 import { hashPassword } from "@/lib/server/password";
+import { studentVisibilityWhere } from "@/lib/server/access";
+import { createAuditLog, sendNotification } from "@/lib/server/activity";
 
 const stageEnum = z.enum(["LEAD", "ENROLLED", "APPLIED", "OFFERED"]);
 
@@ -16,6 +17,7 @@ const createStudentSchema = z.object({
   englishLevel: z.string(),
   stage: stageEnum.optional(),
   gpa: z.number().min(0).max(4).optional(),
+  budget: z.number().positive().optional(),
   assignedAgentId: z.string().optional(),
   assignedSubAgentId: z.string().optional(),
   username: z.string().min(3),
@@ -25,6 +27,7 @@ const createStudentSchema = z.object({
 export async function POST(request: Request) {
   const session = await requireSession();
   enforceRole(session, ["SuperAdmin", "Admin", "Agent"]);
+  enforcePermission(session, "students:create");
   const payload = await request.json();
   const parsed = createStudentSchema.safeParse(payload);
   if (!parsed.success) {
@@ -33,6 +36,10 @@ export async function POST(request: Request) {
 
   const { password, ...rest } = parsed.data;
   const passwordHash = password ? await hashPassword(password) : undefined;
+
+  if (session.user.role.name === "Agent" && rest.assignedAgentId && rest.assignedAgentId !== session.userId) {
+    return NextResponse.json({ error: "Agents can only assign their own students" }, { status: 403 });
+  }
 
   try {
     const student = await prisma.student.create({
@@ -46,6 +53,25 @@ export async function POST(request: Request) {
         assignedSubAgentId: rest.assignedSubAgentId || undefined,
       },
     });
+
+    await createAuditLog({
+      tenantId: session.tenantId,
+      userId: session.userId,
+      description: `Created student ${student.fullName}`,
+      category: "STUDENT_CREATED",
+      resourceId: student.id,
+      resourceType: "Student",
+    });
+
+    const notifyTarget = student.assignedAgentId ?? session.userId;
+    await sendNotification({
+      tenantId: session.tenantId,
+      userId: notifyTarget,
+      title: "New student added",
+      message: `${student.fullName} was added to your pipeline.`,
+      type: "new_student",
+    });
+
     return NextResponse.json({ student });
   } catch (error) {
     console.error("student create failed", error);
@@ -55,20 +81,23 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const session = await requireSession();
+  enforcePermission(session, "students:view");
   const { searchParams } = new URL(request.url);
   const page = Number(searchParams.get("page") ?? "1");
   const limit = Math.min(Number(searchParams.get("limit") ?? "20"), 100);
   const stage = searchParams.get("stage");
   const assignedAgentId = searchParams.get("assignedAgentId");
 
-  const where: Prisma.StudentWhereInput = { tenantId: session.tenantId, isDeleted: false };
+  const where: Record<string, unknown> = studentVisibilityWhere(session);
   if (stage) {
     const parsedStage = stageEnum.safeParse(stage);
     if (parsedStage.success) {
       where.stage = parsedStage.data;
     }
   }
-  if (assignedAgentId) where.assignedAgentId = assignedAgentId;
+  if (assignedAgentId && session.user.role.name !== "Agent" && session.user.role.name !== "SubAgent") {
+    where.assignedAgentId = assignedAgentId;
+  }
   const search = searchParams.get("search");
   if (search) {
     where.OR = [

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireSession, enforceRole } from "@/lib/server/guards";
+import { requireSession, enforceRole, enforcePermission } from "@/lib/server/guards";
 
 const universitySchema = z.object({
   name: z.string().min(2),
@@ -17,6 +17,7 @@ const universitySchema = z.object({
 export async function POST(request: Request) {
   const session = await requireSession();
   enforceRole(session, ["SuperAdmin", "Admin"]);
+  enforcePermission(session, "universities:create");
   const parsed = universitySchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const session = await requireSession();
+  enforcePermission(session, "universities:view");
   const universities = await prisma.university.findMany({
     where: { tenantId: session.tenantId },
     orderBy: { updatedAt: "desc" },

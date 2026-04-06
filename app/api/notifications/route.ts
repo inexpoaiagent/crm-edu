@@ -10,6 +10,11 @@ const notificationSchema = z.object({
   type: z.string().optional(),
 });
 
+const readSchema = z.object({
+  notificationIds: z.array(z.string()).optional(),
+  markAll: z.boolean().optional(),
+});
+
 export async function GET() {
   const session = await requireSession();
   const notifications = await prisma.notification.findMany({
@@ -36,4 +41,31 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ notification });
+}
+
+export async function PATCH(request: Request) {
+  const session = await requireSession();
+  const parsed = readSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
+  }
+
+  if (parsed.data.markAll) {
+    await prisma.notification.updateMany({
+      where: { tenantId: session.tenantId, userId: session.userId, read: false },
+      data: { read: true },
+    });
+    return NextResponse.json({ message: "All notifications marked as read" });
+  }
+
+  if (!parsed.data.notificationIds?.length) {
+    return NextResponse.json({ error: "No notifications provided" }, { status: 400 });
+  }
+
+  await prisma.notification.updateMany({
+    where: { tenantId: session.tenantId, userId: session.userId, id: { in: parsed.data.notificationIds } },
+    data: { read: true },
+  });
+
+  return NextResponse.json({ message: "Notifications updated" });
 }

@@ -1,23 +1,29 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { comparePassword } from "@/lib/server/password";
 import { setSessionCookie } from "@/lib/server/session";
 
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  tenantSlug: z.string().min(2),
+});
+
 export async function POST(request: Request) {
-  const data = await request.json();
-  const { email, password, tenantSlug } = data;
-
-  if (!email || !password || !tenantSlug) {
-    return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
+  const parsed = loginSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
   }
+  const { email, password, tenantSlug } = parsed.data;
 
-  const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
+  const tenant = await prisma.tenant.findFirst({ where: { slug: tenantSlug, isActive: true } });
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
   const user = await prisma.user.findFirst({
-    where: { email: email.toLowerCase(), tenantId: tenant.id, isDeleted: false },
+    where: { email: email.toLowerCase(), tenantId: tenant.id, isDeleted: false, status: "ACTIVE" },
     include: { role: true },
   });
 
@@ -30,8 +36,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const payload = { userId: user.id, tenantId: tenant.id, role: user.role.name };
-  setSessionCookie(payload);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLogin: new Date() },
+  });
 
-  return NextResponse.json({ message: "Authenticated" });
+  await setSessionCookie({
+    userId: user.id,
+    tenantId: tenant.id,
+    role: user.role.name,
+    authType: "USER",
+  });
+
+  return NextResponse.json({
+    message: "Authenticated",
+    user: { id: user.id, name: user.name, role: user.role.name, tenantSlug: tenant.slug },
+  });
 }

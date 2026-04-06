@@ -1,5 +1,5 @@
-import prisma from "@/lib/prisma";
-import { hashPassword } from "@/lib/server/password";
+import prisma from "../lib/prisma";
+import { hashPassword } from "../lib/server/password";
 
 const SUPER_ADMIN_EMAIL = "admincrm@vertue.com";
 const SUPER_ADMIN_PASSWORD = "Vertue2026";
@@ -19,9 +19,27 @@ async function main() {
 
   const roles = [
     { name: "SuperAdmin", permissions: ["*"], isDefault: false },
-    { name: "Admin", permissions: ["students:*", "applications:*", "universities:*"], isDefault: true },
-    { name: "Agent", permissions: ["students:view", "applications:create", "documents:upload"], isDefault: false },
-    { name: "SubAgent", permissions: ["students:view", "documents:upload"], isDefault: false },
+    {
+      name: "Admin",
+      permissions: [
+        "students:*",
+        "applications:*",
+        "universities:*",
+        "documents:*",
+        "tasks:*",
+        "payments:*",
+        "scholarships:*",
+        "users:*",
+        "roles:*",
+      ],
+      isDefault: true,
+    },
+    {
+      name: "Agent",
+      permissions: ["students:create", "students:view", "students:update", "applications:create", "applications:view", "applications:update", "tasks:view", "tasks:create"],
+      isDefault: false,
+    },
+    { name: "SubAgent", permissions: ["students:view", "applications:view", "documents:upload", "tasks:view"], isDefault: false },
     { name: "Student", permissions: ["portal:read"], isDefault: false },
   ];
 
@@ -46,7 +64,7 @@ async function main() {
   const passwordHash = await hashPassword(SUPER_ADMIN_PASSWORD);
 
   await prisma.user.upsert({
-    where: { email: SUPER_ADMIN_EMAIL },
+    where: { tenantId_email: { tenantId: tenant.id, email: SUPER_ADMIN_EMAIL } },
     update: {
       tenantId: tenant.id,
       roleId: superRole.id,

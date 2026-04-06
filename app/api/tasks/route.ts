@@ -15,8 +15,13 @@ const taskSchema = z.object({
 
 export async function GET() {
   const session = await requireSession();
+  const where =
+    session.user.role.name === "Agent" || session.user.role.name === "SubAgent"
+      ? { tenantId: session.tenantId, assignedToId: session.userId }
+      : { tenantId: session.tenantId };
+
   const tasks = await prisma.task.findMany({
-    where: { tenantId: session.tenantId },
+    where,
     orderBy: { deadline: "asc" },
   });
   return NextResponse.json({ tasks });

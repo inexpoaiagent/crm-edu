@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireSession, enforceRole } from "@/lib/server/guards";
+import { requireSession, enforceRole, enforcePermission } from "@/lib/server/guards";
 
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -14,21 +14,30 @@ const updateSchema = z.object({
   description: z.string().optional(),
 });
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, context: RouteContext<"/api/universities/[id]">) {
   const session = await requireSession();
-  const university = await prisma.university.findFirst({ where: { id: params.id, tenantId: session.tenantId } });
+  enforcePermission(session, "universities:view");
+  const { id } = await context.params;
+  const university = await prisma.university.findFirst({ where: { id, tenantId: session.tenantId } });
   if (!university) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ university });
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, context: RouteContext<"/api/universities/[id]">) {
   const session = await requireSession();
   enforceRole(session, ["SuperAdmin", "Admin"]);
+  enforcePermission(session, "universities:update");
+  const { id } = await context.params;
   const parsed = updateSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
+  }
+
+  const existing = await prisma.university.findFirst({ where: { id, tenantId: session.tenantId } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const updatePayload = {
@@ -37,16 +46,23 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   };
 
   const university = await prisma.university.update({
-    where: { id: params.id },
+    where: { id },
     data: updatePayload,
   });
 
   return NextResponse.json({ university });
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: Request, context: RouteContext<"/api/universities/[id]">) {
   const session = await requireSession();
   enforceRole(session, ["SuperAdmin", "Admin"]);
-  await prisma.university.delete({ where: { id: params.id } });
+  enforcePermission(session, "universities:delete");
+  const { id } = await context.params;
+
+  const existing = await prisma.university.findFirst({ where: { id, tenantId: session.tenantId } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  await prisma.university.delete({ where: { id } });
   return NextResponse.json({ message: "Removed" });
 }

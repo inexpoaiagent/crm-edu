@@ -27,6 +27,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
   }
 
+  const university = await prisma.university.findFirst({
+    where: { id: parsed.data.universityId, tenantId: session.tenantId },
+  });
+  if (!university) {
+    return NextResponse.json({ error: "University not found" }, { status: 404 });
+  }
+
   const scholarship = await prisma.scholarship.create({
     data: {
       tenantId: session.tenantId,
