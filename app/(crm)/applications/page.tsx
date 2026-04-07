@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { fetchJson } from "@/lib/client/fetch-json";
 
 type Application = {
   id: string;
@@ -14,6 +15,7 @@ type Application = {
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState({
@@ -25,9 +27,14 @@ export default function ApplicationsPage() {
   });
 
   async function load() {
-    const response = await fetch("/api/applications");
-    const payload = (await response.json()) as { applications: Application[] };
-    setApplications(payload.applications ?? []);
+    const { response, data } = await fetchJson<{ applications?: Application[]; error?: string }>("/api/applications");
+    if (!response.ok) {
+      setError(data?.error ?? "Failed to load applications.");
+      setApplications([]);
+      return;
+    }
+    setError(null);
+    setApplications(data?.applications ?? []);
   }
 
   useEffect(() => {
@@ -48,6 +55,22 @@ export default function ApplicationsPage() {
     }
   }
 
+  async function deleteApplication(id: string) {
+    const confirmed = window.confirm("Delete this application?");
+    if (!confirmed) return;
+    const { response } = await fetchJson(`/api/applications/${id}`, { method: "DELETE" });
+    if (response.ok) await load();
+  }
+
+  function statusBadgeClass(status: string) {
+    const key = status.toUpperCase();
+    if (key === "LEAD") return "status-lead";
+    if (key === "APPLIED") return "status-applied";
+    if (key === "OFFERED" || key === "ACCEPTED") return "status-offered";
+    if (key === "ENROLLED") return "status-enrolled";
+    return "";
+  }
+
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return applications;
@@ -64,6 +87,7 @@ export default function ApplicationsPage() {
     <div className="space-y-6">
       <section className="card">
         <h1 className="text-2xl font-semibold">Applications</h1>
+        {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </section>
 
       <section className="card">
@@ -105,6 +129,7 @@ export default function ApplicationsPage() {
                 <th>University</th>
                 <th>Status</th>
                 <th>Intake</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -117,8 +142,20 @@ export default function ApplicationsPage() {
                   </td>
                   <td>{application.student?.fullName}</td>
                   <td>{application.university?.name}</td>
-                  <td>{application.status}</td>
+                  <td>
+                    <span className={`status-badge ${statusBadgeClass(application.status)}`}>{application.status}</span>
+                  </td>
                   <td>{application.intake}</td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <Link className="btn-ghost px-2 py-1 text-xs" href={`/applications/${application.id}`}>
+                        Edit
+                      </Link>
+                      <button className="btn-ghost px-2 py-1 text-xs text-danger" type="button" onClick={() => deleteApplication(application.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

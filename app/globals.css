@@ -3,12 +3,12 @@
 :root {
   --color-primary: #0f62fe;
   --color-primary-pressed: #0a53d6;
-  --color-secondary: #f5f7ff;
+  --color-secondary: #edf2ff;
   --color-surface: #ffffff;
-  --color-surface-alt: #f7f9fc;
-  --color-border: #e1e8ff;
-  --color-text: #0b1437;
-  --color-muted: #5f6b8a;
+  --color-surface-alt: #f2f5fb;
+  --color-border: #d1dcf6;
+  --color-text: #091733;
+  --color-muted: #4f5f83;
   --color-success: #1c7c54;
   --color-warning: #d9822b;
   --color-danger: #d92d20;
@@ -69,7 +69,7 @@ textarea {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-base);
   padding: var(--space-lg);
-  box-shadow: 0 20px 40px rgba(15, 28, 77, 0.08);
+  box-shadow: 0 16px 32px rgba(15, 28, 77, 0.07);
 }
 
 .glass-card {
@@ -177,8 +177,8 @@ textarea {
 }
 
 .icon-svg {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.3rem;
+  height: 1.3rem;
   display: block;
   color: inherit;
 }
@@ -189,6 +189,35 @@ textarea {
 
 .icon-btn:hover {
   background: var(--color-secondary);
+}
+
+.status-badge {
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-lead {
+  background: #e8efff;
+  color: #2c4ca8;
+}
+
+.status-applied {
+  background: #e8f4ff;
+  color: #17538a;
+}
+
+.status-offered {
+  background: #fff2df;
+  color: #8a5a0d;
+}
+
+.status-enrolled {
+  background: #e5f8ee;
+  color: #16683f;
 }
 
 html.crm-dark {

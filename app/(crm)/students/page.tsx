@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -19,6 +19,7 @@ type Meta = { currentPage: number; total: number; limit: number };
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<Meta>({ currentPage: 1, total: 0, limit: 20 });
   const [filters, setFilters] = useState({ q: "", stage: "", nationality: "", page: 1 });
   const [savedViews, setSavedViews] = useState<Array<{ id: string; name: string; filters: Record<string, unknown> }>>([]);
@@ -43,10 +44,13 @@ export default function StudentsPage() {
     params.set("limit", String(meta.limit));
     const { response, data } = await fetchJson<{ students?: Student[]; meta?: Meta; error?: string }>(`/api/students?${params.toString()}`);
     if (!response.ok) {
+      setError(data?.error ?? "Failed to load students.");
       setStudents([]);
       setLoading(false);
       return;
     }
+
+    setError(null);
     const payload = data ?? {};
     const filtered = (payload.students ?? []).filter((student) =>
       filters.nationality ? student.nationality.toLowerCase().includes(filters.nationality.toLowerCase()) : true,
@@ -91,6 +95,13 @@ export default function StudentsPage() {
     }
   }
 
+  async function deleteStudent(studentId: string) {
+    const confirmed = window.confirm("Delete this student?");
+    if (!confirmed) return;
+    const { response } = await fetchJson(`/api/students/${studentId}`, { method: "DELETE" });
+    if (response.ok) await loadStudents();
+  }
+
   async function saveCurrentView() {
     const name = window.prompt("View name:", "My filter view");
     if (!name) return;
@@ -111,11 +122,20 @@ export default function StudentsPage() {
     });
   }
 
+  function stageBadgeClass(stage: string) {
+    if (stage === "LEAD") return "status-lead";
+    if (stage === "APPLIED") return "status-applied";
+    if (stage === "OFFERED") return "status-offered";
+    if (stage === "ENROLLED") return "status-enrolled";
+    return "";
+  }
+
   return (
     <div className="space-y-6">
       <section className="card">
         <h1 className="text-2xl font-semibold">Students</h1>
         <p className="mt-2 text-sm text-muted">Advanced search, filters, and tenant-scoped student management.</p>
+        {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </section>
 
       <section className="card">
@@ -195,6 +215,7 @@ export default function StudentsPage() {
                     <th>Nationality</th>
                     <th>Stage</th>
                     <th>Field</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -208,17 +229,27 @@ export default function StudentsPage() {
                       <td>{student.email}</td>
                       <td>{student.phone}</td>
                       <td>{student.nationality}</td>
-                      <td>{student.stage}</td>
+                      <td>
+                        <span className={`status-badge ${stageBadgeClass(student.stage)}`}>{student.stage}</span>
+                      </td>
                       <td>{student.fieldOfStudy}</td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/students/${student.id}`} className="btn-ghost px-2 py-1 text-xs">
+                            Edit
+                          </Link>
+                          <button className="btn-ghost px-2 py-1 text-xs text-danger" type="button" onClick={() => deleteStudent(student.id)}>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-muted">
-                Page {meta.currentPage} • Total {meta.total}
-              </p>
+              <p className="text-xs text-muted">Page {meta.currentPage} • Total {meta.total}</p>
               <div className="flex gap-2">
                 <button className="btn-ghost" type="button" disabled={filters.page <= 1} onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}>
                   Previous

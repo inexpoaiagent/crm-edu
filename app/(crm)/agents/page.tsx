@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { fetchJson } from "@/lib/client/fetch-json";
 
 type UserRow = {
   id: string;
@@ -16,17 +17,30 @@ type RoleOption = { id: string; name: string };
 export default function AgentsPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", password: "", roleId: "" });
 
   async function load() {
-    const [usersRes, rolesRes] = await Promise.all([fetch("/api/users"), fetch("/api/roles")]);
-    const usersPayload = (await usersRes.json()) as { users: UserRow[] };
-    const rolesPayload = (await rolesRes.json()) as { roles: RoleOption[] };
-    setUsers(usersPayload.users ?? []);
-    setRoles(rolesPayload.roles ?? []);
-    if (!form.roleId && rolesPayload.roles?.length) {
-      const defaultRole = rolesPayload.roles.find((role) => role.name === "Agent") ?? rolesPayload.roles[0];
-      setForm((prev) => ({ ...prev, roleId: defaultRole.id }));
+    const [usersRes, rolesRes] = await Promise.all([
+      fetchJson<{ users?: UserRow[]; error?: string }>("/api/users"),
+      fetchJson<{ roles?: RoleOption[]; error?: string }>("/api/roles"),
+    ]);
+
+    if (!usersRes.response.ok) {
+      setError(usersRes.data?.error ?? "Failed to load users.");
+      setUsers([]);
+    } else {
+      setUsers(usersRes.data?.users ?? []);
+      setError(null);
+    }
+
+    if (rolesRes.response.ok) {
+      const fetchedRoles = rolesRes.data?.roles ?? [];
+      setRoles(fetchedRoles);
+      if (!form.roleId && fetchedRoles.length) {
+        const defaultRole = fetchedRoles.find((role) => role.name === "Agent") ?? fetchedRoles[0];
+        setForm((prev) => ({ ...prev, roleId: defaultRole.id }));
+      }
     }
   }
 
@@ -47,10 +61,24 @@ export default function AgentsPage() {
     }
   }
 
+  async function deleteUser(userId: string) {
+    const confirmed = window.confirm("Delete this user?");
+    if (!confirmed) return;
+    const { response } = await fetchJson(`/api/users/${userId}`, { method: "DELETE" });
+    if (response.ok) await load();
+  }
+
+  function statusBadgeClass(status: string) {
+    if (status === "ACTIVE") return "status-enrolled";
+    if (status === "PENDING") return "status-applied";
+    return "status-lead";
+  }
+
   return (
     <div className="space-y-6">
       <section className="card">
         <h1 className="text-2xl font-semibold">Agent and admin management</h1>
+        {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </section>
       <section className="card">
         <h2 className="text-lg font-semibold">Create account</h2>
@@ -92,6 +120,7 @@ export default function AgentsPage() {
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -104,7 +133,19 @@ export default function AgentsPage() {
                   </td>
                   <td>{user.email}</td>
                   <td>{user.role}</td>
-                  <td>{user.status}</td>
+                  <td>
+                    <span className={`status-badge ${statusBadgeClass(user.status)}`}>{user.status}</span>
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/agents/${user.id}`} className="btn-ghost px-2 py-1 text-xs">
+                        Edit
+                      </Link>
+                      <button className="btn-ghost px-2 py-1 text-xs text-danger" type="button" onClick={() => deleteUser(user.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

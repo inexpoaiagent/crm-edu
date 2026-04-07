@@ -83,9 +83,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="card dashboard-hero bg-black text-black">
+      <section className="card dashboard-hero bg-black text-white">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="dashboard-hero-sub mt-1 text-sm text-black/85">Welcome back, Admin. Here is your operations overview.</p>
+        <p className="dashboard-hero-sub mt-1 text-sm text-white/85">Welcome back, Admin. Here is your operations overview.</p>
       </section>
 
       {error ? <section className="card text-danger">{error}</section> : null}

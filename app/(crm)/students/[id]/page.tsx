@@ -58,6 +58,17 @@ export default function StudentDetailPage() {
   const [copilot, setCopilot] = useState<CopilotResponse | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [docInsights, setDocInsights] = useState<Record<string, string>>({});
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    nationality: "",
+    fieldOfStudy: "",
+    englishLevel: "",
+    stage: "LEAD",
+    gpa: "",
+    budget: "",
+  });
 
   useEffect(() => {
     async function load() {
@@ -68,7 +79,21 @@ export default function StudentDetailPage() {
         fetchJson<CopilotResponse>(`/api/ai/copilot/student/${params.id}`),
       ]);
       if (!studentRes.response.ok) return;
-      setStudent(studentRes.data?.student ?? null);
+      const loadedStudent = studentRes.data?.student ?? null;
+      setStudent(loadedStudent);
+      if (loadedStudent) {
+        setEditForm({
+          fullName: loadedStudent.fullName ?? "",
+          email: loadedStudent.email ?? "",
+          phone: loadedStudent.phone ?? "",
+          nationality: loadedStudent.nationality ?? "",
+          fieldOfStudy: loadedStudent.fieldOfStudy ?? "",
+          englishLevel: loadedStudent.englishLevel ?? "",
+          stage: loadedStudent.stage ?? "LEAD",
+          gpa: loadedStudent.gpa != null ? String(loadedStudent.gpa) : "",
+          budget: loadedStudent.budget != null ? String(loadedStudent.budget) : "",
+        });
+      }
       if (matchingRes.response.ok) setRecommendations(matchingRes.data?.recommendations ?? []);
       if (timelineRes.response.ok) setTimeline(timelineRes.data ?? null);
       if (copilotRes.response.ok) setCopilot(copilotRes.data ?? null);
@@ -79,6 +104,23 @@ export default function StudentDetailPage() {
   async function deleteStudent() {
     const response = await fetch(`/api/students/${params.id}`, { method: "DELETE" });
     if (response.ok) router.push("/students");
+  }
+
+  async function saveStudent() {
+    const response = await fetch(`/api/students/${params.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...editForm,
+        gpa: editForm.gpa ? Number(editForm.gpa) : undefined,
+        budget: editForm.budget ? Number(editForm.budget) : undefined,
+      }),
+    });
+    if (!response.ok) return;
+    const result = await fetchJson<{ student?: StudentDetail }>(`/api/students/${params.id}`);
+    if (result.response.ok && result.data?.student) {
+      setStudent(result.data.student);
+    }
   }
 
   const targetCountry = useMemo(() => student?.applications[0]?.university?.country ?? "Turkey", [student]);
@@ -109,6 +151,58 @@ export default function StudentDetailPage() {
         <button className="btn-ghost text-danger" onClick={deleteStudent} type="button">
           Delete student
         </button>
+      </section>
+
+      <section className="card">
+        <h2 className="text-lg font-semibold">Edit Student</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="text-sm text-muted">
+            Full name
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.fullName} onChange={(event) => setEditForm((prev) => ({ ...prev, fullName: event.target.value }))} />
+          </label>
+          <label className="text-sm text-muted">
+            Email
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.email} onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))} />
+          </label>
+          <label className="text-sm text-muted">
+            Phone
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.phone} onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))} />
+          </label>
+          <label className="text-sm text-muted">
+            Nationality
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.nationality} onChange={(event) => setEditForm((prev) => ({ ...prev, nationality: event.target.value }))} />
+          </label>
+          <label className="text-sm text-muted">
+            Field of study
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.fieldOfStudy} onChange={(event) => setEditForm((prev) => ({ ...prev, fieldOfStudy: event.target.value }))} />
+          </label>
+          <label className="text-sm text-muted">
+            English level
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.englishLevel} onChange={(event) => setEditForm((prev) => ({ ...prev, englishLevel: event.target.value }))} />
+          </label>
+          <label className="text-sm text-muted">
+            Stage
+            <select className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.stage} onChange={(event) => setEditForm((prev) => ({ ...prev, stage: event.target.value }))}>
+              <option value="LEAD">LEAD</option>
+              <option value="APPLIED">APPLIED</option>
+              <option value="OFFERED">OFFERED</option>
+              <option value="ENROLLED">ENROLLED</option>
+            </select>
+          </label>
+          <label className="text-sm text-muted">
+            GPA
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.gpa} onChange={(event) => setEditForm((prev) => ({ ...prev, gpa: event.target.value }))} />
+          </label>
+          <label className="text-sm text-muted">
+            Budget
+            <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={editForm.budget} onChange={(event) => setEditForm((prev) => ({ ...prev, budget: event.target.value }))} />
+          </label>
+        </div>
+        <div className="mt-4">
+          <button className="btn-solid" type="button" onClick={saveStudent}>
+            Save changes
+          </button>
+        </div>
       </section>
 
       <section className="card">

@@ -61,7 +61,10 @@ export default function TopbarActions() {
       <GlobalSearch />
       <div className="relative">
         <button className="btn-ghost icon-btn relative flex h-10 w-10 items-center justify-center p-0 text-text" type="button" onClick={() => setOpen((prev) => !prev)} title="Notifications">
-          <span className="text-base leading-none">🔔</span>
+          <svg viewBox="0 0 24 24" className="icon-svg" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5" />
+            <path d="M9.5 17a2.5 2.5 0 0 0 5 0" />
+          </svg>
           {unread ? <span className="absolute -right-1 -top-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-white">{unread}</span> : null}
         </button>
         {open ? (
@@ -86,17 +89,33 @@ export default function TopbarActions() {
         ) : null}
       </div>
       <button className="btn-ghost icon-btn flex h-10 w-10 items-center justify-center p-0 text-text" type="button" onClick={openCommandPalette} title="Search (Ctrl/Cmd + K)">
-        <span className="text-base leading-none">⌕</span>
+        <svg viewBox="0 0 24 24" className="icon-svg" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="10" cy="10" r="6" />
+          <path d="M15 15l5 5" />
+        </svg>
       </button>
       <button className="btn-ghost icon-btn flex h-10 w-10 items-center justify-center p-0 text-text" type="button" onClick={toggleDarkMode} title={darkMode ? "Light mode" : "Dark mode"}>
-        <span className="text-base leading-none">{darkMode ? "☀" : "☾"}</span>
+        {darkMode ? (
+          <svg viewBox="0 0 24 24" className="icon-svg" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="icon-svg" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+          </svg>
+        )}
       </button>
       <div className="topbar-chip rounded-full border border-border px-3 py-1 text-xs font-semibold text-text">
         {me?.name ?? "User"} - {me?.role ?? "Role"}
       </div>
       <form action="/api/auth/logout" method="post">
         <button className="btn-ghost icon-btn flex h-10 w-10 items-center justify-center p-0 text-text" type="submit" title="Logout">
-          <span className="text-base leading-none">⎋</span>
+          <svg viewBox="0 0 24 24" className="icon-svg" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H4" />
+            <path d="M20 4v16" />
+          </svg>
         </button>
       </form>
     </div>

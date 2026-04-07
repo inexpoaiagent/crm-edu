@@ -86,6 +86,13 @@ export default function UniversitiesPage() {
     }
   }
 
+  async function deleteUniversity(id: string) {
+    const confirmed = window.confirm("Delete this university?");
+    if (!confirmed) return;
+    const { response } = await fetchJson(`/api/universities/${id}`, { method: "DELETE" });
+    if (response.ok) await loadUniversities();
+  }
+
   const filteredUniversities = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return universities;
@@ -214,6 +221,12 @@ export default function UniversitiesPage() {
                     Website
                   </a>
                 ) : null}
+                <Link className="btn-ghost px-2 py-1 text-xs" href={`/universities/${university.id}`}>
+                  Edit
+                </Link>
+                <button className="btn-ghost px-2 py-1 text-xs text-danger" type="button" onClick={() => deleteUniversity(university.id)}>
+                  Delete
+                </button>
               </div>
             </article>
           );
