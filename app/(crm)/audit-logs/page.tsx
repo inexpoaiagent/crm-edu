@@ -25,7 +25,15 @@ export default function AuditLogsPage() {
   return (
     <div className="space-y-6">
       <section className="card">
-        <h1 className="text-2xl font-semibold">Audit Logs</h1>
+        <div className="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="icon-svg text-text" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 6h12" />
+            <path d="M8 12h12" />
+            <path d="M8 18h12" />
+            <path d="M3 6h.01M3 12h.01M3 18h.01" />
+          </svg>
+          <h1 className="text-2xl font-semibold">Audit Logs</h1>
+        </div>
         <p className="mt-2 text-sm text-muted">Review all system activity and changes.</p>
       </section>
       <section className="card">
@@ -46,10 +54,10 @@ export default function AuditLogsPage() {
                 {logs.map((log) => (
                   <tr key={log.id}>
                     <td>{new Date(log.createdAt).toLocaleString()}</td>
-                    <td>{log.category || "—"}</td>
+                    <td>{log.category || "-"}</td>
                     <td>{log.description}</td>
                     <td>
-                      {log.resourceType || "—"} {log.resourceId ? `#${log.resourceId}` : ""}
+                      {log.resourceType || "-"} {log.resourceId ? `#${log.resourceId}` : ""}
                     </td>
                   </tr>
                 ))}

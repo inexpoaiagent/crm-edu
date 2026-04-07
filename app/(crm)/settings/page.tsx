@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Role = { id: string; name: string; permissions: string[] };
-type Profile = { id: string; name: string; email: string; language: "en" | "tr" | "fa" };
+type Profile = {
+  id: string;
+  name: string;
+  email: string;
+  language: "en" | "tr" | "fa";
+  fontScale: "sm" | "md" | "lg";
+  preferredCurrency: "TRY" | "USD" | "EUR" | "GBP";
+};
 
 const agentDefaultPermissions = [
   "students:view",
@@ -36,7 +43,14 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(["students:view"]);
   const [roleForm, setRoleForm] = useState({ name: "" });
-  const [profileForm, setProfileForm] = useState({ name: "", language: "en", currentPassword: "", newPassword: "" });
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    language: "en",
+    fontScale: "md",
+    preferredCurrency: "TRY",
+    currentPassword: "",
+    newPassword: "",
+  });
   const [message, setMessage] = useState<string | null>(null);
 
   async function load() {
@@ -49,6 +63,8 @@ export default function SettingsPage() {
       ...prev,
       name: profilePayload.profile?.name ?? "",
       language: profilePayload.profile?.language ?? "en",
+      fontScale: profilePayload.profile?.fontScale ?? "md",
+      preferredCurrency: profilePayload.profile?.preferredCurrency ?? "TRY",
     }));
   }
 
@@ -98,6 +114,11 @@ export default function SettingsPage() {
     });
     if (response.ok) {
       setProfileForm((prev) => ({ ...prev, currentPassword: "", newPassword: "" }));
+      const root = document.documentElement;
+      localStorage.setItem("crm_font_scale", profileForm.fontScale);
+      localStorage.setItem("crm_currency", profileForm.preferredCurrency);
+      root.classList.remove("crm-font-sm", "crm-font-md", "crm-font-lg");
+      root.classList.add(`crm-font-${profileForm.fontScale}`);
       setMessage("Profile updated.");
       await load();
     }
@@ -124,10 +145,39 @@ export default function SettingsPage() {
           </label>
           <label className="text-sm text-muted">
             Language
-            <select className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={profileForm.language} onChange={(event) => setProfileForm((prev) => ({ ...prev, language: event.target.value }))}>
+            <select
+              className="mt-1 w-full rounded-xl border border-border px-3 py-2"
+              value={profileForm.language}
+              onChange={(event) => setProfileForm((prev) => ({ ...prev, language: event.target.value as "en" | "tr" | "fa" }))}
+            >
               <option value="en">English</option>
               <option value="tr">Turkish</option>
               <option value="fa">Persian</option>
+            </select>
+          </label>
+          <label className="text-sm text-muted">
+            System font size
+            <select
+              className="mt-1 w-full rounded-xl border border-border px-3 py-2"
+              value={profileForm.fontScale}
+              onChange={(event) => setProfileForm((prev) => ({ ...prev, fontScale: event.target.value as "sm" | "md" | "lg" }))}
+            >
+              <option value="sm">Compact</option>
+              <option value="md">Standard</option>
+              <option value="lg">Comfortable</option>
+            </select>
+          </label>
+          <label className="text-sm text-muted">
+            Preferred currency
+            <select
+              className="mt-1 w-full rounded-xl border border-border px-3 py-2"
+              value={profileForm.preferredCurrency}
+              onChange={(event) => setProfileForm((prev) => ({ ...prev, preferredCurrency: event.target.value as "TRY" | "USD" | "EUR" | "GBP" }))}
+            >
+              <option value="TRY">TRY (Turkish Lira)</option>
+              <option value="USD">USD (US Dollar)</option>
+              <option value="EUR">EUR (Euro)</option>
+              <option value="GBP">GBP (British Pound)</option>
             </select>
           </label>
           <label className="text-sm text-muted">

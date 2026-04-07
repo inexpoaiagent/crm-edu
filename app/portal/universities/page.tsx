@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { fetchJson } from "@/lib/client/fetch-json";
 
 type University = {
   id: string;
@@ -11,21 +13,30 @@ type University = {
 };
 
 export default function PortalUniversitiesPage() {
+  const router = useRouter();
   const [universities, setUniversities] = useState<University[]>([]);
   const [applyForm, setApplyForm] = useState({ universityId: "", program: "", intake: "" });
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const response = await fetch("/api/portal/universities");
-    const payload = (await response.json()) as { universities: University[] };
-    setUniversities(payload.universities ?? []);
-    if (!applyForm.universityId && payload.universities?.length) {
-      setApplyForm((prev) => ({ ...prev, universityId: payload.universities[0].id }));
+    const { response, data } = await fetchJson<{ universities: University[] }>("/api/portal/universities");
+    if (response.status === 401) {
+      router.push("/portal/login");
+      return;
+    }
+    if (!response.ok) {
+      setError("Unable to load universities.");
+      return;
+    }
+    setUniversities(data?.universities ?? []);
+    if (!applyForm.universityId && data?.universities?.length) {
+      setApplyForm((prev) => ({ ...prev, universityId: data.universities[0].id }));
     }
   }
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [router]);
 
   async function apply(event: React.FormEvent) {
     event.preventDefault();
@@ -42,6 +53,7 @@ export default function PortalUniversitiesPage() {
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h1 className="text-2xl font-semibold text-white">Universities</h1>
       </section>
+      {error ? <section className="rounded-2xl border border-red-300 bg-red-500/10 p-4 text-sm text-red-100">{error}</section> : null}
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h2 className="text-lg font-semibold text-white">Apply to a university</h2>
         <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={apply}>

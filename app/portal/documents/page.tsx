@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { fetchJson } from "@/lib/client/fetch-json";
 
 type DocumentRecord = {
   id: string;
@@ -11,19 +13,28 @@ type DocumentRecord = {
 };
 
 export default function PortalDocumentsPage() {
+  const router = useRouter();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [type, setType] = useState("PASSPORT");
   const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const response = await fetch("/api/portal/documents");
-    const payload = (await response.json()) as { documents: DocumentRecord[] };
-    setDocuments(payload.documents ?? []);
+    const { response, data } = await fetchJson<{ documents: DocumentRecord[] }>("/api/portal/documents");
+    if (response.status === 401) {
+      router.push("/portal/login");
+      return;
+    }
+    if (!response.ok) {
+      setError("Unable to load documents.");
+      return;
+    }
+    setDocuments(data?.documents ?? []);
   }
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [router]);
 
   async function upload(event: React.FormEvent) {
     event.preventDefault();
@@ -44,6 +55,7 @@ export default function PortalDocumentsPage() {
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h1 className="text-2xl font-semibold text-white">Documents</h1>
       </section>
+      {error ? <section className="rounded-2xl border border-red-300 bg-red-500/10 p-4 text-sm text-red-100">{error}</section> : null}
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h2 className="text-lg font-semibold text-white">Upload document</h2>
         <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={upload}>

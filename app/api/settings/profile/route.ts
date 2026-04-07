@@ -7,21 +7,39 @@ import { comparePassword, hashPassword } from "@/lib/server/password";
 const profileSchema = z.object({
   name: z.string().min(2).optional(),
   language: z.enum(["en", "tr", "fa"]).optional(),
+  fontScale: z.enum(["sm", "md", "lg"]).optional(),
+  preferredCurrency: z.enum(["TRY", "USD", "EUR", "GBP"]).optional(),
   currentPassword: z.string().min(6).optional(),
   newPassword: z.string().min(6).optional(),
 });
+
+function readUiPreferences(profile: unknown) {
+  const raw = (profile && typeof profile === "object" ? profile : {}) as Record<string, unknown>;
+  const fontScale = raw.fontScale === "sm" || raw.fontScale === "lg" ? raw.fontScale : "md";
+  const preferredCurrency =
+    raw.preferredCurrency === "USD" || raw.preferredCurrency === "EUR" || raw.preferredCurrency === "GBP" ? raw.preferredCurrency : "TRY";
+  return { fontScale, preferredCurrency };
+}
 
 export async function GET() {
   const session = await requireSession();
   const user = await prisma.user.findFirst({
     where: { id: session.userId, tenantId: session.tenantId, isDeleted: false },
-    select: { id: true, name: true, email: true, language: true },
+    select: { id: true, name: true, email: true, language: true, profile: true },
   });
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-  return NextResponse.json({ profile: user });
+  return NextResponse.json({
+    profile: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      language: user.language,
+      ...readUiPreferences(user.profile),
+    },
+  });
 }
 
 export async function PATCH(request: Request) {
@@ -55,10 +73,23 @@ export async function PATCH(request: Request) {
     data: {
       name: parsed.data.name,
       language: parsed.data.language,
+      profile: {
+        ...(user.profile && typeof user.profile === "object" ? (user.profile as Record<string, unknown>) : {}),
+        ...(parsed.data.fontScale ? { fontScale: parsed.data.fontScale } : {}),
+        ...(parsed.data.preferredCurrency ? { preferredCurrency: parsed.data.preferredCurrency } : {}),
+      },
       ...(passwordHash ? { passwordHash } : {}),
     },
-    select: { id: true, name: true, email: true, language: true },
+    select: { id: true, name: true, email: true, language: true, profile: true },
   });
 
-  return NextResponse.json({ profile: updated });
+  return NextResponse.json({
+    profile: {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      language: updated.language,
+      ...readUiPreferences(updated.profile),
+    },
+  });
 }

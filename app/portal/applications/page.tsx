@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { fetchJson } from "@/lib/client/fetch-json";
 
 type Application = {
   id: string;
@@ -11,19 +13,32 @@ type Application = {
 };
 
 export default function PortalApplicationsPage() {
+  const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/portal/applications")
-      .then((response) => response.json())
-      .then((payload: { applications: Application[] }) => setApplications(payload.applications ?? []));
-  }, []);
+    async function load() {
+      const { response, data } = await fetchJson<{ applications: Application[] }>("/api/portal/applications");
+      if (response.status === 401) {
+        router.push("/portal/login");
+        return;
+      }
+      if (!response.ok) {
+        setError("Unable to load applications.");
+        return;
+      }
+      setApplications(data?.applications ?? []);
+    }
+    void load();
+  }, [router]);
 
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <h1 className="text-2xl font-semibold text-white">My applications</h1>
       </section>
+      {error ? <section className="rounded-2xl border border-red-300 bg-red-500/10 p-4 text-sm text-red-100">{error}</section> : null}
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
         <ul className="space-y-3">
           {applications.map((application) => (

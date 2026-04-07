@@ -39,5 +39,38 @@ export async function GET(_request: Request, context: RouteContext<"/api/student
     }),
   ]);
 
-  return NextResponse.json({ auditLogs, tasks, applications, documents });
+  const events = [
+    ...auditLogs.map((item) => ({
+      id: `audit-${item.id}`,
+      type: "AUDIT",
+      title: item.description,
+      at: item.createdAt,
+      meta: { category: item.category ?? "SYSTEM" },
+    })),
+    ...tasks.map((item) => ({
+      id: `task-${item.id}`,
+      type: "TASK",
+      title: `${item.title} (${item.status})`,
+      at: item.updatedAt,
+      meta: { status: item.status },
+    })),
+    ...applications.map((item) => ({
+      id: `app-${item.id}`,
+      type: "APPLICATION",
+      title: `${item.program} -> ${item.status}`,
+      at: item.updatedAt,
+      meta: { status: item.status },
+    })),
+    ...documents.map((item) => ({
+      id: `doc-${item.id}`,
+      type: "DOCUMENT",
+      title: `${item.type} -> ${item.status}`,
+      at: item.updatedAt,
+      meta: { status: item.status },
+    })),
+  ]
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, 60);
+
+  return NextResponse.json({ auditLogs, tasks, applications, documents, events });
 }

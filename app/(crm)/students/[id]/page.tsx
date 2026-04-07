@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { fetchJson } from "@/lib/client/fetch-json";
 
 type StudentDetail = {
   id: string;
@@ -21,13 +22,18 @@ type StudentDetail = {
   tasks: Array<{ id: string; title: string; status: string; deadline?: string | null }>;
 };
 
-type Recommendation = { universityId: string; universityName: string; score: number };
+type Recommendation = { universityId: string; universityName: string; score: number; factors?: string[]; recommendedProgram?: string };
+type TimelineEvent = { id: string; type: string; title: string; at: string; meta?: Record<string, string> };
 
 type TimelineResponse = {
-  auditLogs: Array<{ id: string; description: string; createdAt: string }>;
-  tasks: Array<{ id: string; title: string; updatedAt: string; status: string }>;
-  applications: Array<{ id: string; program: string; status: string; updatedAt: string }>;
-  documents: Array<{ id: string; type: string; status: string; updatedAt: string }>;
+  events: TimelineEvent[];
+};
+
+type CopilotResponse = {
+  summary: string;
+  nextActions: string[];
+  draftMessages: { toStudent: string; toUniversity: string };
+  riskAlerts: string[];
 };
 
 type TabKey = "overview" | "apps" | "docs" | "finance" | "tasks" | "chat" | "smart-match" | "timeline";
@@ -49,37 +55,35 @@ export default function StudentDetailPage() {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [timeline, setTimeline] = useState<TimelineResponse | null>(null);
+  const [copilot, setCopilot] = useState<CopilotResponse | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [docInsights, setDocInsights] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
-      const [studentRes, matchingRes, timelineRes] = await Promise.all([
-        fetch(`/api/students/${params.id}`),
-        fetch(`/api/matching/student/${params.id}`),
-        fetch(`/api/students/${params.id}/timeline`),
+      const [studentRes, matchingRes, timelineRes, copilotRes] = await Promise.all([
+        fetchJson<{ student: StudentDetail }>(`/api/students/${params.id}`),
+        fetchJson<{ recommendations: Recommendation[] }>(`/api/matching/student/${params.id}`),
+        fetchJson<TimelineResponse>(`/api/students/${params.id}/timeline`),
+        fetchJson<CopilotResponse>(`/api/ai/copilot/student/${params.id}`),
       ]);
-      const studentPayload = (await studentRes.json()) as { student: StudentDetail };
-      const matchingPayload = (await matchingRes.json()) as { recommendations: Recommendation[] };
-      const timelinePayload = (await timelineRes.json()) as TimelineResponse;
-      setStudent(studentPayload.student);
-      setRecommendations(matchingPayload.recommendations ?? []);
-      setTimeline(timelinePayload);
+      if (!studentRes.response.ok) return;
+      setStudent(studentRes.data?.student ?? null);
+      if (matchingRes.response.ok) setRecommendations(matchingRes.data?.recommendations ?? []);
+      if (timelineRes.response.ok) setTimeline(timelineRes.data ?? null);
+      if (copilotRes.response.ok) setCopilot(copilotRes.data ?? null);
     }
     void load();
   }, [params.id]);
 
   async function deleteStudent() {
     const response = await fetch(`/api/students/${params.id}`, { method: "DELETE" });
-    if (response.ok) {
-      router.push("/students");
-    }
+    if (response.ok) router.push("/students");
   }
 
   const targetCountry = useMemo(() => student?.applications[0]?.university?.country ?? "Turkey", [student]);
 
-  if (!student) {
-    return <div className="card">Loading student dashboard...</div>;
-  }
+  if (!student) return <div className="card">Loading student dashboard...</div>;
 
   const tabCounts: Record<TabKey, number> = {
     overview: 0,
@@ -89,7 +93,7 @@ export default function StudentDetailPage() {
     tasks: student.tasks.length,
     chat: 0,
     "smart-match": recommendations.length,
-    timeline: (timeline?.auditLogs.length ?? 0) + (timeline?.applications.length ?? 0),
+    timeline: timeline?.events.length ?? 0,
   };
 
   return (
@@ -98,7 +102,7 @@ export default function StudentDetailPage() {
         <div>
           <h1 className="text-2xl font-semibold">{student.fullName}</h1>
           <p className="mt-1 text-sm text-muted">
-            {student.email} • {student.phone} • {student.nationality}
+            {student.email} - {student.phone} - {student.nationality}
           </p>
           <span className="badge mt-3">{student.stage}</span>
         </div>
@@ -130,7 +134,7 @@ export default function StudentDetailPage() {
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-xl border border-border p-3">
                 <p className="text-muted">GPA</p>
-                <p className="text-lg font-semibold">{student.gpa?.toFixed(2) ?? "—"}</p>
+                <p className="text-lg font-semibold">{student.gpa?.toFixed(2) ?? "-"}</p>
               </div>
               <div className="rounded-xl border border-border p-3">
                 <p className="text-muted">English Level</p>
@@ -150,23 +154,23 @@ export default function StudentDetailPage() {
               </div>
               <div className="rounded-xl border border-border p-3">
                 <p className="text-muted">Passport #</p>
-                <p className="text-lg font-semibold">—</p>
+                <p className="text-lg font-semibold">-</p>
               </div>
             </div>
           </div>
           <div className="card">
-            <h2 className="text-lg font-semibold">Quick Actions</h2>
-            <div className="mt-4 space-y-3">
-              <Link href="/pipeline" className="block rounded-xl border border-border p-3 hover:bg-secondary">
-                Move in pipeline board
-              </Link>
-              <Link href="/student-requests" className="block rounded-xl border border-border p-3 hover:bg-secondary">
-                Open student requests
-              </Link>
-              <Link href="/universities" className="block rounded-xl border border-border p-3 hover:bg-secondary">
-                Browse universities
-              </Link>
-            </div>
+            <h2 className="text-lg font-semibold">AI Copilot</h2>
+            <p className="mt-2 text-sm text-muted">{copilot?.summary ?? "Loading copilot..."}</p>
+            <ul className="mt-3 space-y-1 text-sm">
+              {(copilot?.nextActions ?? []).map((action) => (
+                <li key={action}>- {action}</li>
+              ))}
+            </ul>
+            {copilot?.riskAlerts?.length ? (
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                {copilot.riskAlerts.join(" | ")}
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -190,9 +194,25 @@ export default function StudentDetailPage() {
           <h2 className="text-lg font-semibold">Documents ({student.documents.length})</h2>
           <ul className="mt-4 space-y-2">
             {student.documents.map((document) => (
-              <li key={document.id} className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
-                <span>{document.type}</span>
-                <span className="badge">{document.status}</span>
+              <li key={document.id} className="rounded-xl border border-border px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <span>{document.type}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="rounded-md border border-border px-2 py-1 text-xs text-muted hover:bg-secondary"
+                      type="button"
+                      onClick={async () => {
+                        const result = await fetchJson<{ recommendations: string[] }>(`/api/documents/${document.id}/analyze`, { method: "POST" });
+                        if (!result.response.ok) return;
+                        setDocInsights((prev) => ({ ...prev, [document.id]: (result.data?.recommendations ?? []).join(" | ") }));
+                      }}
+                    >
+                      Analyze
+                    </button>
+                    <span className="badge">{document.status}</span>
+                  </div>
+                </div>
+                {docInsights[document.id] ? <p className="mt-2 text-xs text-muted">{docInsights[document.id]}</p> : null}
               </li>
             ))}
           </ul>
@@ -232,7 +252,19 @@ export default function StudentDetailPage() {
       {activeTab === "chat" ? (
         <section className="card">
           <h2 className="text-lg font-semibold">Chat (0)</h2>
-          <p className="mt-2 text-sm text-muted">Messaging module can be connected here.</p>
+          <p className="mt-2 text-sm text-muted">Communication Hub wiring can connect here.</p>
+          {copilot ? (
+            <div className="mt-4 grid gap-3">
+              <div className="rounded-xl border border-border p-3 text-sm">
+                <p className="mb-1 font-semibold">Draft to Student</p>
+                <p>{copilot.draftMessages.toStudent}</p>
+              </div>
+              <div className="rounded-xl border border-border p-3 text-sm">
+                <p className="mb-1 font-semibold">Draft to University</p>
+                <p>{copilot.draftMessages.toUniversity}</p>
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -242,7 +274,12 @@ export default function StudentDetailPage() {
           <ul className="mt-4 space-y-2">
             {recommendations.map((recommendation) => (
               <li key={recommendation.universityId} className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
-                <span>{recommendation.universityName}</span>
+                <div>
+                  <p className="font-medium">{recommendation.universityName}</p>
+                  <p className="text-xs text-muted">
+                    Program: {recommendation.recommendedProgram || "General"} - {(recommendation.factors || []).join(", ") || "best fit"}
+                  </p>
+                </div>
                 <span className="badge">{Math.round(recommendation.score * 100)}%</span>
               </li>
             ))}
@@ -252,17 +289,33 @@ export default function StudentDetailPage() {
 
       {activeTab === "timeline" ? (
         <section className="card">
-          <h2 className="text-lg font-semibold">Timeline</h2>
+          <h2 className="text-lg font-semibold">Timeline 360</h2>
           <ul className="mt-4 space-y-2">
-            {timeline?.auditLogs.map((item) => (
-              <li key={item.id} className="rounded-xl border border-border px-3 py-2">
-                <p className="text-sm">{item.description}</p>
-                <p className="text-xs text-muted">{new Date(item.createdAt).toLocaleString()}</p>
+            {timeline?.events.map((event) => (
+              <li key={event.id} className="rounded-xl border border-border px-3 py-2">
+                <p className="text-xs uppercase text-muted">{event.type}</p>
+                <p className="text-sm">{event.title}</p>
+                <p className="text-xs text-muted">{new Date(event.at).toLocaleString()}</p>
               </li>
             )) ?? <li className="text-sm text-muted">No timeline entries.</li>}
           </ul>
         </section>
       ) : null}
+
+      <section className="card">
+        <h2 className="text-lg font-semibold">Quick Actions</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <Link href="/pipeline" className="rounded-xl border border-border p-3 hover:bg-secondary">
+            Open Trello+ board
+          </Link>
+          <Link href="/student-requests" className="rounded-xl border border-border p-3 hover:bg-secondary">
+            Manage requests
+          </Link>
+          <Link href="/universities" className="rounded-xl border border-border p-3 hover:bg-secondary">
+            Browse universities
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

@@ -14,6 +14,10 @@ const universitySchema = z.object({
   description: z.string().optional(),
 });
 
+function normalizePrograms(programs: string[]) {
+  return Array.from(new Set(programs.map((item) => item.trim()).filter(Boolean)));
+}
+
 export async function POST(request: Request) {
   const session = await requireSession();
   enforceRole(session, ["SuperAdmin", "Admin"]);
@@ -27,6 +31,7 @@ export async function POST(request: Request) {
     data: {
       tenantId: session.tenantId,
       ...parsed.data,
+      programs: normalizePrograms(parsed.data.programs),
       deadline: parsed.data.deadline ? new Date(parsed.data.deadline) : null,
     },
   });

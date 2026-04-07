@@ -23,6 +23,22 @@
   --font-sans: Inter, "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
 }
 
+html {
+  font-size: 13px;
+}
+
+html.crm-font-sm {
+  font-size: 12px;
+}
+
+html.crm-font-md {
+  font-size: 13px;
+}
+
+html.crm-font-lg {
+  font-size: 14px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -30,8 +46,17 @@
 body {
   margin: 0;
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  line-height: 1.45;
   background: var(--color-surface-alt);
   color: var(--color-text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 .app-shell {
@@ -141,4 +166,118 @@ body {
 
 .bg-secondary {
   background: var(--color-secondary);
+}
+
+.topbar-surface {
+  background: var(--color-surface);
+}
+
+.topbar-chip {
+  background: var(--color-surface);
+}
+
+.icon-svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
+  color: inherit;
+}
+
+.icon-btn {
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.icon-btn:hover {
+  background: var(--color-secondary);
+}
+
+html.crm-dark {
+  --color-surface: #101a36;
+  --color-surface-alt: #0b1020;
+  --color-border: #20315d;
+  --color-text: #e5ecff;
+  --color-muted: #a7b6dc;
+  --color-secondary: #16264d;
+}
+
+html.crm-dark body {
+  background: #0b1020;
+  color: #e5ecff;
+}
+
+html.crm-dark .app-shell {
+  background: linear-gradient(180deg, #0b1020 0%, #111935 45%, #141d3d 100%);
+}
+
+html.crm-dark .card {
+  background: #101a36;
+  border-color: #20315d;
+  color: #e5ecff;
+}
+
+html.crm-dark .text-muted {
+  color: #a7b6dc;
+}
+
+html.crm-dark .table-card th,
+html.crm-dark .table-card td {
+  border-bottom-color: #20315d;
+}
+
+html.crm-dark .crm-sidebar {
+  background: #0d1630;
+  border-color: #20315d;
+}
+
+html.crm-dark .crm-header {
+  background: rgba(13, 22, 48, 0.82);
+  border-color: #20315d;
+}
+
+html.crm-dark .crm-nav-link {
+  color: #d7e3ff;
+}
+
+html.crm-dark .crm-nav-link:hover {
+  background: #16264d;
+}
+
+html.crm-dark .btn-ghost {
+  border-color: #2a3f72;
+  color: #d7e3ff;
+}
+
+html.crm-dark .bg-white {
+  background: #101a36 !important;
+}
+
+html.crm-dark .bg-white\/80 {
+  background: rgba(16, 26, 54, 0.82) !important;
+}
+
+html.crm-dark .bg-white\/60 {
+  background: rgba(16, 26, 54, 0.6) !important;
+}
+
+html.crm-dark .dashboard-hero {
+  background: #05070f !important;
+  border-color: #2a3f72;
+}
+
+html.crm-dark .dashboard-hero-sub {
+  color: #c8d7ff !important;
+}
+
+html.crm-dark .topbar-surface,
+html.crm-dark .topbar-chip {
+  background: #101a36;
+  border-color: #2a3f72;
+}
+
+html.crm-dark input,
+html.crm-dark select,
+html.crm-dark textarea {
+  background: #0f1a38;
+  border-color: #2a3f72;
+  color: #e5ecff;
 }

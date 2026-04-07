@@ -73,6 +73,7 @@ model Tenant {
   roles     Role[]
   students  Student[]
   universities University[]
+  universityPrograms UniversityProgram[]
   applications Application[]
   documents Document[]
   payments Payment[]
@@ -181,8 +182,35 @@ model University {
   updatedAt    DateTime    @updatedAt
   applications Application[]
   scholarships Scholarship[]
+  programDetails UniversityProgram[]
 
   @@index([tenantId, country])
+}
+
+model UniversityProgram {
+  id            String    @id @default(uuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  universityId  String
+  university    University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  level         String
+  programName   String
+  language      String?
+  durationYears Float?
+  currency      String     @default("USD")
+  baseFee       Float?
+  installmentDiscountPct Float?
+  installmentFee Float?
+  fullPaymentDiscountPct Float?
+  fullPaymentFee Float?
+  scholarshipPct Float?
+  scholarshipFee Float?
+  prepaymentFee  Float?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId, universityId])
 }
 
 model Application {

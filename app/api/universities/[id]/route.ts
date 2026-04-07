@@ -14,11 +14,23 @@ const updateSchema = z.object({
   description: z.string().optional(),
 });
 
+function normalizePrograms(programs: string[]) {
+  return Array.from(new Set(programs.map((item) => item.trim()).filter(Boolean)));
+}
+
 export async function GET(_request: Request, context: RouteContext<"/api/universities/[id]">) {
   const session = await requireSession();
   enforcePermission(session, "universities:view");
   const { id } = await context.params;
-  const university = await prisma.university.findFirst({ where: { id, tenantId: session.tenantId } });
+  const university = await prisma.university.findFirst({
+    where: { id, tenantId: session.tenantId },
+    include: {
+      programDetails: {
+        where: { tenantId: session.tenantId },
+        orderBy: [{ level: "asc" }, { programName: "asc" }],
+      },
+    },
+  });
   if (!university) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -42,6 +54,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/univer
 
   const updatePayload = {
     ...parsed.data,
+    programs: parsed.data.programs ? normalizePrograms(parsed.data.programs) : undefined,
     deadline: parsed.data.deadline ? new Date(parsed.data.deadline) : null,
   };
 

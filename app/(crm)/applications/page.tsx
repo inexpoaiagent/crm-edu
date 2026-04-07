@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Application = {
   id: string;
@@ -14,6 +14,8 @@ type Application = {
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [query, setQuery] = useState("");
   const [form, setForm] = useState({
     studentId: "",
     universityId: "",
@@ -41,9 +43,22 @@ export default function ApplicationsPage() {
     });
     if (response.ok) {
       setForm({ studentId: "", universityId: "", program: "", intake: "", status: "DRAFT" });
+      setShowAddForm(false);
       await load();
     }
   }
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return applications;
+    return applications.filter(
+      (application) =>
+        application.program.toLowerCase().includes(term) ||
+        application.intake.toLowerCase().includes(term) ||
+        (application.student?.fullName || "").toLowerCase().includes(term) ||
+        (application.university?.name || "").toLowerCase().includes(term),
+    );
+  }, [applications, query]);
 
   return (
     <div className="space-y-6">
@@ -52,22 +67,36 @@ export default function ApplicationsPage() {
       </section>
 
       <section className="card">
-        <h2 className="text-lg font-semibold">Create application</h2>
-        <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={createApplication}>
-          {Object.entries(form).map(([key, value]) => (
-            <label key={key} className="text-sm text-muted">
-              {key}
-              <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={value} onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))} />
-            </label>
-          ))}
-          <button className="btn-solid md:col-span-2" type="submit">
-            Save application
-          </button>
-        </form>
-      </section>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Applications list</h2>
+          <div className="flex gap-2">
+            <input
+              className="rounded-xl border border-border px-3 py-2 text-sm"
+              placeholder="Search applications..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <button className="btn-solid" type="button" onClick={() => setShowAddForm((prev) => !prev)}>
+              {showAddForm ? "Close add form" : "Add application"}
+            </button>
+          </div>
+        </div>
 
-      <section className="card">
-        <div className="overflow-x-auto">
+        {showAddForm ? (
+          <form className="mt-4 grid gap-3 rounded-xl border border-border p-4 md:grid-cols-2" onSubmit={createApplication}>
+            {Object.entries(form).map(([key, value]) => (
+              <label key={key} className="text-sm text-muted">
+                {key}
+                <input className="mt-1 w-full rounded-xl border border-border px-3 py-2" value={value} onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))} />
+              </label>
+            ))}
+            <button className="btn-solid md:col-span-2" type="submit">
+              Save application
+            </button>
+          </form>
+        ) : null}
+
+        <div className="mt-4 overflow-x-auto">
           <table className="table-card">
             <thead>
               <tr>
@@ -79,7 +108,7 @@ export default function ApplicationsPage() {
               </tr>
             </thead>
             <tbody>
-              {applications.map((application) => (
+              {filtered.map((application) => (
                 <tr key={application.id}>
                   <td>
                     <Link href={`/applications/${application.id}`} className="text-primary underline">

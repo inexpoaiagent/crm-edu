@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { fetchJson } from "@/lib/client/fetch-json";
 
 type StudentMe = {
   id: string;
@@ -10,26 +12,33 @@ type StudentMe = {
 };
 
 export default function PortalDashboardPage() {
+  const router = useRouter();
   const [student, setStudent] = useState<StudentMe | null>(null);
   const [applications, setApplications] = useState<Array<{ id: string; status: string }>>([]);
   const [documents, setDocuments] = useState<Array<{ id: string; status: string }>>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       const [meRes, appRes, docRes] = await Promise.all([
-        fetch("/api/portal/auth/me"),
-        fetch("/api/portal/applications"),
-        fetch("/api/portal/documents"),
+        fetchJson<{ student: StudentMe }>("/api/portal/auth/me"),
+        fetchJson<{ applications: Array<{ id: string; status: string }> }>("/api/portal/applications"),
+        fetchJson<{ documents: Array<{ id: string; status: string }> }>("/api/portal/documents"),
       ]);
-      const mePayload = (await meRes.json()) as { student: StudentMe };
-      const appPayload = (await appRes.json()) as { applications: Array<{ id: string; status: string }> };
-      const docPayload = (await docRes.json()) as { documents: Array<{ id: string; status: string }> };
-      setStudent(mePayload.student);
-      setApplications(appPayload.applications ?? []);
-      setDocuments(docPayload.documents ?? []);
+      if ([meRes, appRes, docRes].some((item) => item.response.status === 401)) {
+        router.push("/portal/login");
+        return;
+      }
+      if (!meRes.response.ok || !appRes.response.ok || !docRes.response.ok) {
+        setError("Unable to load portal data right now.");
+        return;
+      }
+      setStudent(meRes.data?.student ?? null);
+      setApplications(appRes.data?.applications ?? []);
+      setDocuments(docRes.data?.documents ?? []);
     }
     void load();
-  }, []);
+  }, [router]);
 
   return (
     <div className="space-y-8">
@@ -52,6 +61,7 @@ export default function PortalDashboardPage() {
           </div>
         </div>
       </section>
+      {error ? <section className="rounded-2xl border border-red-300 bg-red-500/10 p-4 text-sm text-red-100">{error}</section> : null}
       <section className="grid gap-4 md:grid-cols-3">
         <Link href="/portal/universities" className="rounded-2xl border border-white/20 p-4 text-white hover:bg-white/5">
           Browse universities
