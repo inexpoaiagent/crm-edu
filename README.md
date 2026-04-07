@@ -54,3 +54,24 @@ Enterprise-ready CRM + Student Portal platform for international student recruit
 - All protected APIs require a valid CRM session.
 - If data does not load after reseed/reset, logout and login again to refresh session context.
 - `prisma:seed:production` is destructive by design (it clears existing CRM data before inserting production seed data).
+
+
+## Screenshots
+
+### Dashboard
+![Dashboard](screenshots/01-dashboard.png)
+
+### Students
+![Students](screenshots/02-students.png)
+
+### Applications
+![Applications](screenshots/0-3applications.png)
+
+### Universiteis
+![Universiteis](screenshots/04-universiteis.png)
+
+### Pipeline
+![Pipeline](screenshots/05-pipeline.png)
+
+### Settings
+![Settings](screenshots/06-settings.png)
